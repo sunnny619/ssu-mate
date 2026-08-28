@@ -24,6 +24,11 @@ import type { Asset, ChatMessage, ChatSession, Club, MailDraft, Plan, UserProfil
 
 type View = "chat" | "clubs" | "mypage";
 type MyTab = "plans" | "mails" | "assets" | "briefs" | "recent";
+type Screen = {
+  view: View;
+  myTab: MyTab;
+  clubPageId: string | null;
+};
 type Flow =
   | { kind: "plan"; step: number; data: Partial<Pick<Plan, "topic" | "target" | "period" | "budget">>; clubIds: string[] }
   | { kind: "mail"; clubId: string; purpose?: string; tone?: string };
@@ -108,6 +113,48 @@ export function SsuMateApp() {
   const clubsById = useMemo(() => new Map(CLUBS.map((club) => [club.id, club])), []);
   const plansById = useMemo(() => new Map(plans.map((plan) => [plan.id, plan])), [plans]);
   const mailsById = useMemo(() => new Map(mails.map((mail) => [mail.id, mail])), [mails]);
+  const currentScreen: Screen = { view, myTab, clubPageId };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const initialScreen: Screen = { view: "chat", myTab: "plans", clubPageId: null };
+    if (!window.history.state?.ssuMateScreen) {
+      window.history.replaceState({ ssuMateScreen: initialScreen }, "", window.location.href);
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const screen = event.state?.ssuMateScreen as Screen | undefined;
+      if (!screen) return;
+      applyScreen(screen);
+      setSideOpen(false);
+      setSettingsOpen(false);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [user]);
+
+  function applyScreen(screen: Screen) {
+    setView(screen.view);
+    setMyTab(screen.myTab);
+    setClubPageId(screen.clubPageId);
+  }
+
+  function isSameScreen(a: Screen, b: Screen) {
+    return a.view === b.view && a.myTab === b.myTab && a.clubPageId === b.clubPageId;
+  }
+
+  function navigate(next: Partial<Screen>, replace = false) {
+    const nextScreen = { ...currentScreen, ...next };
+    if (isSameScreen(currentScreen, nextScreen)) return;
+    if (replace) {
+      window.history.replaceState({ ssuMateScreen: nextScreen }, "", window.location.href);
+    } else {
+      window.history.pushState({ ssuMateScreen: nextScreen }, "", window.location.href);
+    }
+    applyScreen(nextScreen);
+  }
 
   function flash(message: string) {
     setToast(message);
@@ -161,7 +208,8 @@ export function SsuMateApp() {
     setActiveId(session.id);
     setFlow(null);
     setLastMatch([]);
-    setView("chat");
+    applyScreen({ view: "chat", myTab, clubPageId: null });
+    window.history.replaceState({ ssuMateScreen: { view: "chat", myTab, clubPageId: null } }, "", window.location.href);
   }
 
   function sendText(text: string) {
@@ -319,12 +367,9 @@ export function SsuMateApp() {
     <>
       <div className="app">
         <Rail user={user} view={view} myTab={myTab} settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} onNavigate={(target) => {
-          if (target === "chat" || target === "clubs") setView(target);
-          else {
-            setView("mypage");
-            setMyTab(target);
-          }
-          if (target === "clubs") setClubPageId(null);
+          if (target === "chat") navigate({ view: "chat", clubPageId: null });
+          else if (target === "clubs") navigate({ view: "clubs", clubPageId: null });
+          else navigate({ view: "mypage", myTab: target, clubPageId: null });
         }} onLogout={logout} />
         <Sidebar
           open={sideOpen}
@@ -335,14 +380,13 @@ export function SsuMateApp() {
           planCount={plans.length}
           mailCount={mails.length}
           onView={(nextView) => {
-            setView(nextView);
+            navigate({ view: nextView, clubPageId: nextView === "clubs" ? null : clubPageId });
             setSideOpen(false);
-            if (nextView === "clubs") setClubPageId(null);
           }}
           onNew={newChat}
           onSelect={(id) => {
             setActiveId(id);
-            setView("chat");
+            navigate({ view: "chat", clubPageId: null });
             setSideOpen(false);
           }}
         />
@@ -358,15 +402,13 @@ export function SsuMateApp() {
               onMenu={() => setSideOpen((current) => !current)}
               onClub={(id) => {
                 openClub(id);
-                setClubPageId(id);
-                setView("clubs");
+                navigate({ view: "clubs", clubPageId: id });
               }}
               onMail={startMail}
               onCopy={(mail) => navigator.clipboard?.writeText(mail.body).then(() => flash("본문을 복사했습니다"))}
               onDownload={downloadPlan}
               onGoMy={(tab) => {
-                setMyTab(tab);
-                setView("mypage");
+                navigate({ view: "mypage", myTab: tab, clubPageId: null });
               }}
             />
           ) : null}
@@ -379,19 +421,19 @@ export function SsuMateApp() {
               onQuery={setQuery}
               onDivision={setDivision}
               onSort={setSort}
-              onBack={() => setClubPageId(null)}
+              onBack={() => navigate({ view: "clubs", clubPageId: null }, true)}
               onMenu={() => setSideOpen((current) => !current)}
-              onChat={() => setView("chat")}
+              onChat={() => navigate({ view: "chat", clubPageId: null })}
               onOpen={(id) => {
                 openClub(id);
-                setClubPageId(id);
+                navigate({ view: "clubs", clubPageId: id });
               }}
               onMail={(id) => {
-                setView("chat");
+                navigate({ view: "chat", clubPageId: null });
                 startMail(id);
               }}
               onAsk={(id) => {
-                setView("chat");
+                navigate({ view: "chat", clubPageId: null });
                 sendText(`${clubsById.get(id)?.name} 동아리 정보 알려줘`);
               }}
             />
@@ -408,14 +450,13 @@ export function SsuMateApp() {
               clubsById={clubsById}
               mailsById={mailsById}
               onMenu={() => setSideOpen((current) => !current)}
-              onChat={() => setView("chat")}
+              onChat={() => navigate({ view: "chat", clubPageId: null })}
               onAddAsset={addAsset}
               onDownload={downloadPlan}
               onCopy={(mail) => navigator.clipboard?.writeText(mail.body).then(() => flash("본문을 복사했습니다"))}
               onOpenClub={(id) => {
                 openClub(id);
-                setClubPageId(id);
-                setView("clubs");
+                navigate({ view: "clubs", clubPageId: id });
               }}
             />
           ) : null}

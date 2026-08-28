@@ -626,6 +626,7 @@ function ComposerFrame({ onSend, placeholder, footer, compact = false }: { onSen
   const ref = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
   const lastSubmitRef = useRef({ text: "", at: 0 });
+  const [allowExternalSearch, setAllowExternalSearch] = useState(false);
   const resizeTextarea = (textarea: HTMLTextAreaElement) => {
     const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
     const maxHeight = Number.isFinite(lineHeight) ? lineHeight * 10 : 240;
@@ -652,7 +653,7 @@ function ComposerFrame({ onSend, placeholder, footer, compact = false }: { onSen
   };
 
   return (
-    <div className={compact ? "box composer-box" : "glow"}><div className={compact ? "" : "homebox"}>
+    <div className={compact ? `box composer-box${allowExternalSearch ? " external-on" : ""}` : "glow"}><div className={compact ? "" : "homebox"}>
       <textarea ref={ref} rows={compact ? 1 : 2} placeholder={placeholder} onCompositionStart={() => {
         isComposingRef.current = true;
       }} onCompositionEnd={() => {
@@ -665,6 +666,15 @@ function ComposerFrame({ onSend, placeholder, footer, compact = false }: { onSen
       }} />
       <div className="composer-actions">
         <button type="button" className="modechip">{footer}</button>
+        <button
+          type="button"
+          className={allowExternalSearch ? "search-toggle on" : "search-toggle"}
+          aria-pressed={allowExternalSearch}
+          onClick={() => setAllowExternalSearch((current) => !current)}
+        >
+          <span className="toggle-track"><span className="toggle-thumb" /></span>
+          <span>{allowExternalSearch ? "AI 외부 검색 허용" : "AI 내부 문서 검색"}</span>
+        </button>
         <button type="button" className="sendbtn" aria-label="보내기" onClick={() => {
           submit();
         }}><Send size={16} /></button>

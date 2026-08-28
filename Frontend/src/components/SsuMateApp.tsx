@@ -20,7 +20,31 @@ import {
   UsersRound,
 } from "lucide-react";
 import { CLUBS, DIVISIONS, INITIAL_ASSETS, INITIAL_BRIEFS, MONTHS } from "@/data/ssu-mate";
-import type { Asset, ChatMessage, ChatSession, Club, MailDraft, Plan, UserProfile } from "@/types/ssu-mate";
+import {
+  ARCHIVE_ROWS,
+  ARCHIVE_STATS,
+  BRIEF_CHIPS,
+  BRIEF_EVIDENCE_COUNT,
+  BRIEF_PROPOSAL,
+  BRIEF_SECTIONS,
+  BRIEF_TITLE,
+  EXTERNAL_ON_NOTICE,
+  IDEA_BLOCKS,
+  IDEAS_FOOTER,
+  IDEAS_INTRO,
+  RICH_MATCH_CHIPS,
+  RICH_MATCH_INTRO,
+  RICH_MATCH_ITEMS,
+  SCENARIO_MAIL,
+  SCENARIO_PLAN,
+  SCENARIO_PLAN_CONFIRM,
+  SIDEBAR_HISTORY,
+  SIMILAR_PROGRAMS,
+  SIMILAR_PROGRAMS_CHIPS,
+  SIMILAR_PROGRAMS_INTRO,
+  SIMILAR_PROGRAMS_JUDGMENT,
+} from "@/data/scenario";
+import type { Asset, BriefSection, ChatMessage, ChatSession, Club, IdeaBlock, MailDraft, Plan, RichMatchItem, SimilarProgram, UserProfile } from "@/types/ssu-mate";
 
 type View = "chat" | "clubs" | "mypage";
 type MyTab = "plans" | "mails" | "assets" | "briefs" | "recent";
@@ -42,11 +66,21 @@ const PLAN_SLOTS = [
 ] as const;
 
 const QUICK = [
-  { icon: UsersRound, title: "동아리 찾기", desc: "협업할 곳 추천받기", query: "창업 관련 행사를 기획하려는데 지원해줄 만한 동아리가 있을까?" },
-  { icon: FileText, title: "기획안 만들기", desc: "근거 붙은 초안 작성", query: "기획안 작성해줘" },
-  { icon: Mail, title: "협업 메일 쓰기", desc: "회장에게 보낼 초안", query: "스타트온에 협업 메일 써줘" },
-  { icon: Bell, title: "활동 살펴보기", desc: "최근 움직임 확인", query: "최근에 활동이 활발한 동아리 보여줘" },
+  { icon: Search, title: "AI 프로젝트 동아리", desc: "최근 활동 확인", query: "최근 AI 프로젝트를 진행한 동아리를 찾아줘" },
+  { icon: UsersRound, title: "프로덕트 제작 조직", desc: "경험 있는 팀 찾기", query: "프로덕트 제작 경험이 있는 학생 조직이 있어?" },
+  { icon: FileText, title: "신규 프로그램 기획", desc: "올해 아이디어 찾기", query: "올해 새로 기획해볼 만한 창업 프로그램이 있을까?" },
+  { icon: Bell, title: "유사 사업 비교", desc: "수요와 비교 분석", query: "작년에 운영한 유사 사업과 학생 수요를 함께 비교해줘" },
 ];
+
+const SIDEBAR_PREVIEWS: Record<string, string> = {
+  "AI 프로젝트 동아리 탐색": "AI 프로젝트 활동이 확인된 동아리 목록을 정리했습니다.",
+  "2027 신규 프로그램 검토": "2027년 신규 프로그램 방향을 함께 검토했습니다.",
+  "UNITHON 운영 결과 분석": "UNITHON 운영계획서와 결과보고서를 분석했습니다.",
+  "멋쟁이사자처럼 협업 검토": "멋쟁이사자처럼과의 협업 가능성을 검토했습니다.",
+  "최근 IT 동아리 활동 변화": "최근 IT 계열 동아리의 활동 변화를 정리했습니다.",
+  "2025~2026 창업 프로그램 비교": "2025~2026년 창업 프로그램을 비교했습니다.",
+  "Pre-Startup 만족도 분석": "Pre-Startup 참여자 만족도 조사를 분석했습니다.",
+};
 
 const now = () => new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 const uid = (prefix: string) => `${prefix}${Date.now()}${Math.random().toString(16).slice(2, 7)}`;
@@ -85,7 +119,7 @@ function matchClubs(text: string) {
 }
 
 function createSession(): ChatSession {
-  return { id: uid("s"), title: "새 대화", date: TODAY, messages: [] };
+  return { id: uid("s"), title: "새 대화", date: "오늘", messages: [] };
 }
 
 export function SsuMateApp() {
@@ -108,6 +142,7 @@ export function SsuMateApp() {
   const [clubPageId, setClubPageId] = useState<string | null>(null);
   const [sideOpen, setSideOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [evidenceDrawer, setEvidenceDrawer] = useState<{ clubId: string; docIndexes: number[] } | null>(null);
   const externalSearchRef = useRef(false);
 
   const active = sessions.find((session) => session.id === activeId) ?? null;
@@ -164,14 +199,23 @@ export function SsuMateApp() {
 
   function login(form: FormData) {
     const profile = {
-      name: joinMode ? String(form.get("name") || "김성실") : "김성실",
-      email: String(form.get("email") || "startup@ssu.ac.kr"),
-      rank: joinMode ? String(form.get("rank") || "팀원") : "팀원",
+      name: joinMode ? String(form.get("name") || "유영석") : "유영석",
+      email: String(form.get("email") || "youngseok.yu@ssu.ac.kr"),
+      rank: joinMode ? String(form.get("rank") || "담당자") : "담당자",
       department: joinMode ? String(form.get("department") || "창업지원단") : "창업지원단",
+      duty: "대학혁신지원사업 학부생 대상 창업지원 프로그램 기획·운영",
     };
     const session = createSession();
+    const dummySessions: ChatSession[] = SIDEBAR_HISTORY.flatMap((group) =>
+      group.titles.map((title) => ({
+        id: uid("s"),
+        title,
+        date: group.label,
+        messages: [{ id: uid("m"), role: "assistant" as const, text: SIDEBAR_PREVIEWS[title] ?? title, time: "오후 3:00" }],
+      })),
+    );
     setUser(profile);
-    setSessions([session]);
+    setSessions([session, ...dummySessions]);
     setActiveId(session.id);
   }
 
@@ -225,6 +269,31 @@ export function SsuMateApp() {
   function route(text: string) {
     if (flow) {
       runFlow(text);
+      return;
+    }
+
+    if (/멋쟁이사자처럼/.test(text) && /미팅/.test(text) && /메일/.test(text)) {
+      respondScenarioMail();
+      return;
+    }
+
+    if (/내부\s?데이터만\s?사용/.test(text)) {
+      respondBrief();
+      return;
+    }
+
+    if (/외부\s?사례.*차별화|외부.*참고.*아이디어/.test(text)) {
+      respondIdeas();
+      return;
+    }
+
+    if (/유사\s?사업|비슷하게\s?운영|새로\s?기획|비교해줘/.test(text)) {
+      respondSimilarPrograms();
+      return;
+    }
+
+    if (/AI\s?프로젝트|프로덕트\s?제작|기획자.*디자이너.*개발자|웹.*앱.*서비스/.test(text)) {
+      respondRichMatch();
       return;
     }
 
@@ -332,6 +401,77 @@ export function SsuMateApp() {
     addMessage({ role: "assistant", text: `${club.name}(회장 ${club.head.name})에게 보낼 메일을 작성하겠습니다. 목적을 골라주세요.`, chips: ["협업 제안", "자료 요청", "행사 참여 요청"] });
   }
 
+  function respondRichMatch() {
+    const clubIds = RICH_MATCH_ITEMS.map((item) => item.clubId);
+    setLastMatch(clubIds);
+    addMessage({ role: "assistant", text: RICH_MATCH_INTRO, kind: "richMatch", clubIds, richMatchItems: RICH_MATCH_ITEMS, chips: [...RICH_MATCH_CHIPS] });
+  }
+
+  function respondSimilarPrograms() {
+    addMessage({ role: "assistant", text: SIMILAR_PROGRAMS_INTRO, kind: "similarPrograms", similarPrograms: SIMILAR_PROGRAMS, aiJudgment: SIMILAR_PROGRAMS_JUDGMENT, chips: [...SIMILAR_PROGRAMS_CHIPS] });
+  }
+
+  function respondBrief() {
+    addMessage({ role: "assistant", text: BRIEF_TITLE, kind: "brief", briefSections: BRIEF_SECTIONS, briefProposal: BRIEF_PROPOSAL, briefEvidenceCount: BRIEF_EVIDENCE_COUNT, chips: [...BRIEF_CHIPS], externalSearch: false });
+  }
+
+  function respondIdeas() {
+    addMessage({ role: "assistant", text: IDEAS_INTRO, kind: "ideas", ideaBlocks: IDEA_BLOCKS, ideaFooter: IDEAS_FOOTER, externalSearch: true });
+  }
+
+  function respondScenarioMail() {
+    const club = clubsById.get("lion") ?? CLUBS[0];
+    const draft: MailDraft = {
+      id: uid("mail"),
+      clubId: club.id,
+      purpose: "미팅 제안",
+      tone: "공손하게",
+      subject: SCENARIO_MAIL.subject,
+      body: SCENARIO_MAIL.body,
+      createdAt: TODAY,
+      usedInfo: [...SCENARIO_MAIL.usedInfo],
+    };
+    setMails((current) => [draft, ...current]);
+    addMessage({ role: "assistant", text: "멋쟁이사자처럼의 최근 활동을 반영해 협업 문의 초안을 작성했습니다.", kind: "mail", mailId: draft.id, chips: ["다른 톤으로 다시 써줘"] });
+  }
+
+  function createScenarioPlan() {
+    const plan: Plan = {
+      id: uid("p"),
+      title: SCENARIO_PLAN.title,
+      topic: SCENARIO_PLAN.topic,
+      target: SCENARIO_PLAN.targetList.join(", "),
+      period: SCENARIO_PLAN.period,
+      budget: SCENARIO_PLAN.budget,
+      clubIds: ["lion"],
+      assetIds: [],
+      createdAt: TODAY,
+      status: SCENARIO_PLAN.status,
+      purpose: SCENARIO_PLAN.purpose,
+      necessity: SCENARIO_PLAN.necessity,
+      necessityEvidenceIndexes: [0, 1, 2],
+      targetList: [...SCENARIO_PLAN.targetList],
+      expectedSize: SCENARIO_PLAN.expectedSize,
+      expectedSizeIsSuggestion: true,
+      steps: [...SCENARIO_PLAN.steps],
+      internalSources: [...SCENARIO_PLAN.internalSources],
+      evidenceCount: SCENARIO_PLAN.evidenceCount,
+      externalUsed: false,
+    };
+    setPlans((current) => [plan, ...current]);
+    externalSearchRef.current = false;
+    addMessage({ role: "assistant", text: `내부 데이터 기반으로 전환하여 초안을 만들었습니다. 근거자료 ${SCENARIO_PLAN.evidenceCount}건을 반영했습니다.`, kind: "plan", planId: plan.id, chips: ["참여 동아리에 협업 메일 써줘"], externalSearch: false });
+  }
+
+  function showEvidence(clubId: string, docIndexes: number[]) {
+    setEvidenceDrawer({ clubId, docIndexes });
+  }
+
+  function reviewClub(clubId: string) {
+    const club = clubsById.get(clubId);
+    flash(`${club?.name ?? "동아리"} 협업 검토 요청을 기록했습니다`);
+  }
+
   function openClub(clubId: string) {
     setRecent((current) => [clubId, ...current.filter((id) => id !== clubId)].slice(0, 8));
   }
@@ -397,6 +537,7 @@ export function SsuMateApp() {
           {view === "chat" && active ? (
             <ChatView
               active={active}
+              user={user}
               clubsById={clubsById}
               plansById={plansById}
               mailsById={mailsById}
@@ -413,6 +554,10 @@ export function SsuMateApp() {
               onGoMy={(tab) => {
                 navigate({ view: "mypage", myTab: tab, clubPageId: null });
               }}
+              onShowEvidence={showEvidence}
+              onReviewClub={reviewClub}
+              onCreateScenarioPlan={createScenarioPlan}
+              onFlash={flash}
             />
           ) : null}
           {view === "clubs" ? (
@@ -466,7 +611,50 @@ export function SsuMateApp() {
         </main>
       </div>
       <div className={toast ? "toast show" : "toast"}>{toast}</div>
+      {evidenceDrawer ? (
+        <EvidenceDrawer clubId={evidenceDrawer.clubId} docIndexes={evidenceDrawer.docIndexes} clubsById={clubsById} onClose={() => setEvidenceDrawer(null)} onFlash={flash} />
+      ) : null}
     </>
+  );
+}
+
+function EvidenceDrawer({ clubId, docIndexes, clubsById, onClose, onFlash }: { clubId: string; docIndexes: number[]; clubsById: Map<string, Club>; onClose: () => void; onFlash: (message: string) => void }) {
+  const club = clubsById.get(clubId);
+  const docs = docIndexes.map((idx) => club?.docs[idx]).filter((doc): doc is Club["docs"][number] => Boolean(doc));
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-head">
+          <h3>근거자료{club ? ` · ${club.name}` : ""}</h3>
+          <button className="iconbtn" onClick={onClose} aria-label="닫기">×</button>
+        </div>
+        <div className="drawer-body">
+          {docs.length ? docs.map((doc, index) => (
+            <div className="evidence-item" key={doc.title}>
+              <div className="evidence-num">근거 {index + 1}</div>
+              <h5>{doc.title}</h5>
+              <dl className="kv">
+                <dt>문서 유형</dt><dd>{club?.division} · {doc.type}</dd>
+                <dt>작성 시점</dt><dd>{doc.date}</dd>
+              </dl>
+              {doc.aiFinding ? (
+                <>
+                  <div className="chart-title">AI가 확인한 내용</div>
+                  <p>{doc.aiFinding}</p>
+                </>
+              ) : null}
+              {doc.aiTags?.length ? (
+                <>
+                  <div className="chart-title">활용된 분석 항목</div>
+                  <div className="tagrow">{doc.aiTags.map((tag) => <span className="chip" key={tag}>{tag}</span>)}</div>
+                </>
+              ) : null}
+              <button className="btn ghost sm" onClick={() => onFlash("원문 PDF는 프로토타입에서 제공되지 않습니다")}>원문 PDF 열기</button>
+            </div>
+          )) : <div className="empty-small">근거자료가 없습니다.</div>}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -541,6 +729,12 @@ function Rail({ user, view, myTab, settingsOpen, setSettingsOpen, onNavigate, on
 function Sidebar({ open, sessions, activeId, user, view, planCount, mailCount, onView, onNew, onSelect }: { open: boolean; sessions: ChatSession[]; activeId: string | null; user: UserProfile; view: View; planCount: number; mailCount: number; onView: (view: View) => void; onNew: () => void; onSelect: (id: string) => void }) {
   const [search, setSearch] = useState("");
   const list = sessions.filter((session) => !search || session.title.includes(search));
+  const groups: { label: string; items: ChatSession[] }[] = [];
+  list.forEach((session) => {
+    const lastGroup = groups.at(-1);
+    if (lastGroup && lastGroup.label === session.date) lastGroup.items.push(session);
+    else groups.push({ label: session.date, items: [session] });
+  });
   return (
     <aside className={open ? "side open" : "side"}>
       <div className="side-top"><label className="search"><Search size={14} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="대화 검색" /></label></div>
@@ -552,22 +746,32 @@ function Sidebar({ open, sessions, activeId, user, view, planCount, mailCount, o
       </div>
       <div className="side-sec side-heading"><h4>대화</h4><button className="btn ghost sm" onClick={onNew}><Plus size={13} />새 대화</button></div>
       <div className="sessions">
-        {list.length ? list.map((session) => {
-          const last = session.messages.at(-1)?.text ?? "아직 대화가 없습니다";
-          return <button key={session.id} className="sess" aria-current={session.id === activeId} onClick={() => onSelect(session.id)}><span className="t">{session.title}</span><span className="d">{last}</span></button>;
-        }) : <div className="empty-small">검색 결과가 없습니다.</div>}
+        {list.length ? groups.map((group) => (
+          <div key={group.label}>
+            <div className="sess-date">{group.label}</div>
+            {group.items.map((session) => {
+              const last = session.messages.at(-1)?.text ?? "아직 대화가 없습니다";
+              return <button key={session.id} className="sess" aria-current={session.id === activeId} onClick={() => onSelect(session.id)}><span className="t">{session.title}</span><span className="d">{last}</span></button>;
+            })}
+          </div>
+        )) : <div className="empty-small">검색 결과가 없습니다.</div>}
       </div>
       <div className="side-bot"><div className="avatar">{user.name[0]}</div><div><div className="n">{user.name}</div><div className="m">{user.department} · {user.rank}</div></div></div>
     </aside>
   );
 }
 
-function ChatView({ active, clubsById, plansById, mailsById, assets, onSend, onMenu, onClub, onMail, onCopy, onDownload, onGoMy }: { active: ChatSession; clubsById: Map<string, Club>; plansById: Map<string, Plan>; mailsById: Map<string, MailDraft>; assets: Asset[]; onSend: (text: string, externalSearch?: boolean) => void; onMenu: () => void; onClub: (id: string) => void; onMail: (id?: string) => void; onCopy: (mail: MailDraft) => void; onDownload: (plan: Plan) => void; onGoMy: (tab: MyTab) => void }) {
+function ChatView({ active, user, clubsById, plansById, mailsById, assets, onSend, onMenu, onClub, onMail, onCopy, onDownload, onGoMy, onShowEvidence, onReviewClub, onCreateScenarioPlan, onFlash }: { active: ChatSession; user: UserProfile; clubsById: Map<string, Club>; plansById: Map<string, Plan>; mailsById: Map<string, MailDraft>; assets: Asset[]; onSend: (text: string, externalSearch?: boolean) => void; onMenu: () => void; onClub: (id: string) => void; onMail: (id?: string) => void; onCopy: (mail: MailDraft) => void; onDownload: (plan: Plan) => void; onGoMy: (tab: MyTab) => void; onShowEvidence: (clubId: string, docIndexes: number[]) => void; onReviewClub: (clubId: string) => void; onCreateScenarioPlan: () => void; onFlash: (message: string) => void }) {
   const empty = active.messages.length === 0;
   const chatWrapRef = useRef<HTMLDivElement>(null);
   const lastMessageId = active.messages.at(-1)?.id;
   const [allowExternalSearch, setAllowExternalSearch] = useState(false);
   const toggleExternalSearch = () => setAllowExternalSearch((current) => !current);
+  const onIdeaPlanClick = () => {
+    setAllowExternalSearch(false);
+    onFlash(SCENARIO_PLAN_CONFIRM);
+    onCreateScenarioPlan();
+  };
 
   useEffect(() => {
     const chatWrap = chatWrapRef.current;
@@ -584,11 +788,11 @@ function ChatView({ active, clubsById, plansById, mailsById, assets, onSend, onM
   return (
     <>
       <Topbar onMenu={onMenu} title="슈메이트 에이전트" subtitle={`동아리 데이터 ${CLUBS.length}곳 · 창업지원단 자료 ${assets.length}건 연결됨`} icon={<Bot size={17} />} />
-      {empty ? <HomeComposer onSend={onSend} assetCount={assets.length} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={toggleExternalSearch} /> : (
+      {empty ? <HomeComposer user={user} onSend={onSend} assetCount={assets.length} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={toggleExternalSearch} /> : (
         <>
           <div className="chatwrap" ref={chatWrapRef}><div className="msgs">
             {active.messages.map((message) => (
-              <MessageBubble key={message.id} message={message} clubsById={clubsById} plansById={plansById} mailsById={mailsById} onSend={onSend} onClub={onClub} onMail={onMail} onCopy={onCopy} onDownload={onDownload} onGoMy={onGoMy} allowExternalSearch={allowExternalSearch} />
+              <MessageBubble key={message.id} message={message} clubsById={clubsById} plansById={plansById} mailsById={mailsById} onSend={onSend} onClub={onClub} onMail={onMail} onCopy={onCopy} onDownload={onDownload} onGoMy={onGoMy} allowExternalSearch={allowExternalSearch} onShowEvidence={onShowEvidence} onReviewClub={onReviewClub} onIdeaPlanClick={onIdeaPlanClick} />
             ))}
           </div></div>
           <Composer onSend={onSend} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={toggleExternalSearch} />
@@ -609,10 +813,11 @@ function Topbar({ title, subtitle, icon, onMenu, actions }: { title: string; sub
   );
 }
 
-function HomeComposer({ onSend, assetCount, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string, externalSearch?: boolean) => void; assetCount: number; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
+function HomeComposer({ user, onSend, assetCount, allowExternalSearch, onToggleExternalSearch }: { user: UserProfile; onSend: (text: string, externalSearch?: boolean) => void; assetCount: number; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
   return (
     <div className="home"><div className="home-in">
-      <h1 className="hero">무엇이든 편하게 시작해 보세요.</h1>
+      <h1 className="hero">안녕하세요, {user.name}님.</h1>
+      <p className="hero-sub">학생 활동 데이터와 창업지원단의 기존 사업자료를 바탕으로 필요한 정보를 찾아드릴게요.<br />무엇을 확인하고 싶으신가요?</p>
       <ComposerFrame onSend={onSend} placeholder="동아리를 찾거나, 기획안·협업 메일 작성을 요청해 보세요" footer={`동아리 10곳 · 창업지원단 자료 ${assetCount}건`} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={onToggleExternalSearch} />
       <div className="quick">{QUICK.map((item) => {
         const Icon = item.icon;
@@ -683,11 +888,12 @@ function ComposerFrame({ onSend, placeholder, footer, compact = false, allowExte
           submit();
         }}><Send size={16} /></button>
       </div>
+      {allowExternalSearch ? <p className="external-notice pre">{EXTERNAL_ON_NOTICE}</p> : null}
     </div></div>
   );
 }
 
-function MessageBubble(props: { message: ChatMessage; clubsById: Map<string, Club>; plansById: Map<string, Plan>; mailsById: Map<string, MailDraft>; onSend: (text: string, externalSearch?: boolean) => void; onClub: (id: string) => void; onMail: (id?: string) => void; onCopy: (mail: MailDraft) => void; onDownload: (plan: Plan) => void; onGoMy: (tab: MyTab) => void; allowExternalSearch: boolean }) {
+function MessageBubble(props: { message: ChatMessage; clubsById: Map<string, Club>; plansById: Map<string, Plan>; mailsById: Map<string, MailDraft>; onSend: (text: string, externalSearch?: boolean) => void; onClub: (id: string) => void; onMail: (id?: string) => void; onCopy: (mail: MailDraft) => void; onDownload: (plan: Plan) => void; onGoMy: (tab: MyTab) => void; allowExternalSearch: boolean; onShowEvidence: (clubId: string, docIndexes: number[]) => void; onReviewClub: (clubId: string) => void; onIdeaPlanClick: () => void }) {
   const { message, allowExternalSearch } = props;
   const isUser = message.role === "user";
   return (
@@ -705,9 +911,29 @@ function MessageBubble(props: { message: ChatMessage; clubsById: Map<string, Clu
   );
 }
 
-function MessageAttachment({ message, clubsById, plansById, mailsById, onClub, onMail, onCopy, onDownload, onGoMy }: Parameters<typeof MessageBubble>[0]) {
+function MessageAttachment({ message, clubsById, plansById, mailsById, onClub, onMail, onCopy, onDownload, onGoMy, onShowEvidence, onReviewClub, onIdeaPlanClick }: Parameters<typeof MessageBubble>[0]) {
   if (message.kind === "match") {
     return <div className="card reclist">{message.clubIds?.map((id) => clubsById.get(id)).filter((club): club is Club => Boolean(club)).map((club) => <Recommendation key={club.id} club={club} onClub={onClub} onMail={onMail} />)}</div>;
+  }
+  if (message.kind === "richMatch" && message.richMatchItems) {
+    return (
+      <div className="card reclist">
+        {message.richMatchItems.map((item, index) => {
+          const club = clubsById.get(item.clubId);
+          return club ? (
+            <RichMatchCard
+              key={item.clubId}
+              rank={index + 1}
+              club={club}
+              item={item}
+              onClub={onClub}
+              onShowEvidence={onShowEvidence}
+              onReviewClub={onReviewClub}
+            />
+          ) : null;
+        })}
+      </div>
+    );
   }
   if (message.kind === "profile") {
     const club = message.clubIds?.[0] ? clubsById.get(message.clubIds[0]) : undefined;
@@ -715,12 +941,21 @@ function MessageAttachment({ message, clubsById, plansById, mailsById, onClub, o
   }
   if (message.kind === "plan" && message.planId) {
     const plan = plansById.get(message.planId);
-    return plan ? <PlanCard plan={plan} onDownload={onDownload} onGoMy={() => onGoMy("plans")} /> : null;
+    return plan ? <PlanCard plan={plan} onDownload={onDownload} onGoMy={() => onGoMy("plans")} onShowEvidence={onShowEvidence} /> : null;
   }
   if (message.kind === "mail" && message.mailId) {
     const mail = mailsById.get(message.mailId);
     const club = mail ? CLUBS.find((item) => item.id === mail.clubId) : undefined;
     return mail && club ? <MailCard mail={mail} club={club} onCopy={onCopy} onGoMy={() => onGoMy("mails")} /> : null;
+  }
+  if (message.kind === "similarPrograms" && message.similarPrograms) {
+    return <SimilarProgramsCard programs={message.similarPrograms} judgment={message.aiJudgment} />;
+  }
+  if (message.kind === "brief" && message.briefSections) {
+    return <BriefCard sections={message.briefSections} proposal={message.briefProposal} evidenceCount={message.briefEvidenceCount} onShowEvidence={onShowEvidence} />;
+  }
+  if (message.kind === "ideas" && message.ideaBlocks) {
+    return <IdeasCard blocks={message.ideaBlocks} footer={message.ideaFooter} onPlanClick={onIdeaPlanClick} />;
   }
   return null;
 }
@@ -764,8 +999,31 @@ function EvidenceList({ club }: { club: Club }) {
   return <div className="evlist"><div className="meta">근거 자료 {club.docs.length}건</div>{club.docs.slice(0, 3).map((doc) => <div className="e" key={doc.title}><span className="tag">{doc.type}</span><span className="tx">{doc.title}</span><span className="dt">{doc.date}</span></div>)}</div>;
 }
 
-function PlanCard({ plan, onDownload, onGoMy }: { plan: Plan; onDownload: (plan: Plan) => void; onGoMy: () => void }) {
+function PlanCard({ plan, onDownload, onGoMy, onShowEvidence }: { plan: Plan; onDownload: (plan: Plan) => void; onGoMy: () => void; onShowEvidence: (clubId: string, docIndexes: number[]) => void }) {
   const clubs = plan.clubIds.map((id) => CLUBS.find((club) => club.id === id)).filter((club): club is Club => Boolean(club));
+  if (plan.purpose) {
+    return (
+      <div className="card"><div className="doc">
+        <h6>{plan.title}</h6>
+        <div className="dmeta">작성 상태 {plan.status ?? "초안"} · 근거자료 {plan.evidenceCount ?? 0}건 · 외부 리서치 {plan.externalUsed ? "사용" : "사용하지 않음"}</div>
+        <strong>사업 목적</strong>
+        <p>{plan.purpose}</p>
+        <strong>추진 필요성</strong>
+        <p className="pre">{plan.necessity}</p>
+        {plan.necessityEvidenceIndexes?.length ? (
+          <div className="cta">{plan.necessityEvidenceIndexes.map((idx) => <button className="btn ghost sm" key={idx} onClick={() => onShowEvidence(clubs[0]?.id ?? "lion", [idx])}>근거 {idx + 1}</button>)}</div>
+        ) : null}
+        <strong>대상</strong>
+        <ul>{plan.targetList?.map((item) => <li key={item}>{item}</li>)}</ul>
+        <strong>예상 모집 규모</strong>
+        <div className="size-row"><span>{plan.expectedSize}</span>{plan.expectedSizeIsSuggestion ? <Tag kind="suggest" /> : null}</div>
+        <strong>운영 구조</strong>
+        <ul>{plan.steps?.map((step, index) => <li key={step}>{index + 1}. {step}</li>)}</ul>
+        <strong>참고한 내부자료</strong>
+        <ul className="doc-list">{plan.internalSources?.map((source) => <li key={source}>{source}</li>)}</ul>
+      </div><div className="cta"><button className="btn ghost sm" onClick={() => onDownload(plan)}><Download size={13} />DOC 내려받기</button><button className="btn ghost sm" onClick={onGoMy}>내 기획안에서 보기</button></div></div>
+    );
+  }
   return (
     <div className="card"><div className="doc">
       <h6>{plan.title}</h6><div className="dmeta">창업지원단 · 작성 {plan.createdAt}</div>
@@ -777,8 +1035,134 @@ function PlanCard({ plan, onDownload, onGoMy }: { plan: Plan; onDownload: (plan:
   );
 }
 
+function Tag({ kind }: { kind: "fact" | "ai" | "suggest" | "external" }) {
+  const label = kind === "fact" ? "교내 근거 · 원문 확인 가능" : kind === "ai" ? "AI 분석" : kind === "suggest" ? "AI 제안 — 검토 필요" : "외부 리서치 · 추가 확인 필요";
+  return <span className={`itag itag-${kind}`}>{label}</span>;
+}
+
+function RichMatchCard({ rank, club, item, onClub, onShowEvidence, onReviewClub }: { rank: number; club: Club; item: RichMatchItem; onClub: (id: string) => void; onShowEvidence: (clubId: string, docIndexes: number[]) => void; onReviewClub: (clubId: string) => void }) {
+  const docs = item.docIndexes.map((idx) => club.docs[idx]).filter((doc): doc is Club["docs"][number] => Boolean(doc));
+  return (
+    <div className="rec richmatch">
+      <div className="rec-head"><b>{rank}위. {club.name}</b><span className="fit">적합도 {item.fit}%</span></div>
+      <Tag kind="fact" />
+      <div className="why">{club.intro}</div>
+      {club.activityFlow?.length ? (
+        <>
+          <div className="chart-title">최근 주요 활동</div>
+          <ul className="flow-list">{club.activityFlow.map((flow) => <li key={flow.month}><b>{flow.month}</b>{flow.text}</li>)}</ul>
+        </>
+      ) : null}
+      <div className="chart-title">추천 이유</div>
+      <ul className="reason-list">{item.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+      <div className="ev-row"><span>근거 자료 {docs.length}건</span></div>
+      <ul className="doc-list">{docs.map((doc) => <li key={doc.title}>{doc.title}</li>)}</ul>
+      <div className="cta">
+        <button className="btn ghost sm" onClick={() => onClub(club.id)}>동아리 상세보기</button>
+        <button className="btn ghost sm" onClick={() => onShowEvidence(club.id, item.docIndexes)}>근거자료 보기</button>
+        <button className="btn ghost sm" onClick={() => onReviewClub(club.id)}>협업 검토하기</button>
+      </div>
+    </div>
+  );
+}
+
+function SimilarProgramsCard({ programs, judgment }: { programs: SimilarProgram[]; judgment?: string }) {
+  return (
+    <div className="card reclist">
+      {programs.map((program, index) => (
+        <div className="rec" key={program.id}>
+          <div className="rec-head"><b>{index + 1}. {program.title}</b><span className="fit">유사도 {program.similarity}%</span></div>
+          <dl className="kv">
+            {program.target ? <><dt>대상</dt><dd>{program.target}</dd></> : null}
+            <dt>목적</dt><dd>{program.purpose}</dd>
+            {program.method ? <><dt>운영 방식</dt><dd>{program.method}</dd></> : null}
+            {program.period ? <><dt>운영 기간</dt><dd>{program.period}</dd></> : null}
+            {program.size ? <><dt>참여 규모</dt><dd>{program.size}</dd></> : null}
+            {program.satisfaction ? <><dt>만족도</dt><dd>{program.satisfaction}</dd></> : null}
+          </dl>
+          {program.improvements?.length ? (
+            <>
+              <div className="chart-title">확인된 개선사항</div>
+              <ul className="reason-list">{program.improvements.map((item) => <li key={item}>{item}</li>)}</ul>
+            </>
+          ) : null}
+          {program.components?.length ? (
+            <>
+              <div className="chart-title">주요 구성</div>
+              <ul className="reason-list">{program.components.map((item) => <li key={item}>{item}</li>)}</ul>
+            </>
+          ) : null}
+          {program.sources?.length ? (
+            <>
+              <div className="chart-title">근거</div>
+              <ul className="doc-list">{program.sources.map((item) => <li key={item}>{item}</li>)}</ul>
+            </>
+          ) : null}
+        </div>
+      ))}
+      {judgment ? <div className="ai-note"><Tag kind="ai" /><p>{judgment}</p></div> : null}
+    </div>
+  );
+}
+
+function BriefCard({ sections, proposal, evidenceCount, onShowEvidence }: { sections: BriefSection[]; proposal?: string; evidenceCount?: number; onShowEvidence: (clubId: string, docIndexes: number[]) => void }) {
+  return (
+    <div className="card brief-card">
+      {sections.map((section) => (
+        <div className="brief-section" key={section.title}>
+          <h6>{section.title}</h6>
+          <p className="pre">{section.body}</p>
+        </div>
+      ))}
+      {proposal ? (
+        <div className="brief-section">
+          <h6>제안</h6>
+          <Tag kind="suggest" />
+          <p>{proposal}</p>
+        </div>
+      ) : null}
+      {evidenceCount ? (
+        <div className="ev-row">
+          <span>사용 근거 {evidenceCount}건</span>
+          <button className="btn ghost sm" onClick={() => onShowEvidence("lion", [0, 1, 2, 3])}>모든 근거 보기</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function IdeasCard({ blocks, footer, onPlanClick }: { blocks: IdeaBlock[]; footer?: string; onPlanClick: () => void }) {
+  return (
+    <div className="card idea-card">
+      {blocks.map((block) => (
+        <div className="brief-section" key={block.title}>
+          <h6>{block.title}</h6>
+          <p>{block.body}</p>
+          <div className="idea-refs">
+            <div><Tag kind="fact" /><span>{block.internal}</span></div>
+            {block.external ? <div><Tag kind="external" /><span>{block.external}</span></div> : null}
+          </div>
+        </div>
+      ))}
+      {footer ? <p className="idea-footer pre">{footer}</p> : null}
+      <div className="cta"><button className="btn sm" onClick={onPlanClick}>이 아이디어로 기획안 작성</button></div>
+    </div>
+  );
+}
+
 function MailCard({ mail, club, onCopy, onGoMy }: { mail: MailDraft; club: Club; onCopy: (mail: MailDraft) => void; onGoMy: () => void }) {
-  return <div className="card"><div className="mailbox"><div className="mh"><div><span>받는이</span>{club.head.email} ({club.name} 회장)</div><div><span>연락처</span>{club.head.phone}</div><div><span>제목</span>{mail.subject}</div></div><div className="mb">{mail.body}</div></div><div className="cta"><button className="btn ghost sm" onClick={() => onCopy(mail)}><Copy size={13} />본문 복사</button><button className="btn ghost sm" onClick={onGoMy}>메일 이력에서 보기</button></div></div>;
+  return (
+    <div className="card">
+      <div className="mailbox"><div className="mh"><div><span>받는이</span>{club.head.email} ({club.name} 회장)</div><div><span>연락처</span>{club.head.phone}</div><div><span>제목</span>{mail.subject}</div></div><div className="mb">{mail.body}</div></div>
+      {mail.usedInfo?.length ? (
+        <div className="mail-used">
+          <div className="chart-title">이 초안에 활용된 정보</div>
+          <ul className="reason-list">{mail.usedInfo.map((info) => <li key={info}>{info}</li>)}</ul>
+        </div>
+      ) : null}
+      <div className="cta"><button className="btn ghost sm" onClick={() => onCopy(mail)}><Copy size={13} />본문 복사</button><button className="btn ghost sm" onClick={onGoMy}>메일 이력에서 보기</button></div>
+    </div>
+  );
 }
 
 function ClubsView({ query, division, sort, clubPageId, onQuery, onDivision, onSort, onBack, onMenu, onChat, onOpen, onMail, onAsk }: { query: string; division: string; sort: string; clubPageId: string | null; onQuery: (query: string) => void; onDivision: (division: string) => void; onSort: (sort: string) => void; onBack: () => void; onMenu: () => void; onChat: () => void; onOpen: (id: string) => void; onMail: (id: string) => void; onAsk: (id: string) => void }) {
@@ -834,7 +1218,20 @@ function ClubDetail({ club, onBack, onMail, onAsk, onMenu }: { club: Club; onBac
   return (
     <>
       <div className="topbar"><button className="iconbtn mobonly" onClick={onMenu}><Menu size={18} /></button><button className="btn ghost sm" onClick={onBack}>목록</button><div className="who"><div><div className="n">{club.name}</div><div className="s">{club.division}</div></div></div></div>
-      <div className="mp"><div className="mp-in"><div className="cd-head"><div className="avatar">{club.name[0]}</div><div><h1>{club.name}</h1><p>{club.intro}</p></div></div><div className="statline"><div><span>정회원</span><b>{club.members}명</b></div><div><span>12개월 활동</span><b>{totalCount(club)}건</b></div><div><span>활동보고서</span><b>{club.docs.filter((doc) => doc.type === "활동보고서").length}건</b></div><div><span>회의록</span><b>{club.docs.filter((doc) => doc.type === "회의록").length}건</b></div><div><span>마지막 활동</span><b>{lastActive(club)}</b></div></div><div className="cd-grid"><div><div className="box"><h3>최근 12개월 월별 활동 현황</h3><MiniChart club={club} big /></div><div className="box"><h3>근거 자료 {club.docs.length}건</h3>{club.docs.map((doc) => <div className="docrow" key={doc.title}><span className={`badge ${doc.type === "회의록" ? "amber" : "gray"}`}>{doc.type}</span><span>{doc.title}</span><small>{doc.date}</small></div>)}</div></div><div><div className="box"><h3>현재 진행 중인 활동</h3>{club.running.map((item) => <div className="li" key={item}>{item}</div>)}</div><div className="box"><h3>회의록에서 논의 중</h3>{club.talking.map((item) => <div className="li" key={item}>{item}</div>)}</div><div className="box"><h3>연락처</h3><div className="rrow"><span>회장</span>{club.head.name}</div><div className="rrow"><span>이메일</span>{club.head.email}</div><div className="rrow"><span>전화</span>{club.head.phone}</div><button className="btn block" onClick={() => onMail(club.id)}>협업 메일 작성</button></div><div className="box"><h3>활동 분야</h3><div className="tags">{club.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><button className="btn ghost sm wide" onClick={() => onAsk(club.id)}>채팅에서 이 동아리로 물어보기</button></div></div></div></div></div>
+      <div className="mp"><div className="mp-in"><div className="cd-head"><div className="avatar">{club.name[0]}</div><div><h1>{club.name}</h1><p>{club.intro}</p></div></div><div className="statline"><div><span>정회원</span><b>{club.members}명</b></div><div><span>12개월 활동</span><b>{totalCount(club)}건</b></div><div><span>활동보고서</span><b>{club.docs.filter((doc) => doc.type === "활동보고서").length}건</b></div><div><span>회의록</span><b>{club.docs.filter((doc) => doc.type === "회의록").length}건</b></div><div><span>마지막 활동</span><b>{lastActive(club)}</b></div></div><div className="cd-grid"><div><div className="box"><h3>최근 12개월 월별 활동 현황</h3><MiniChart club={club} big /></div><div className="box"><h3>근거 자료 {club.docs.length}건</h3>{club.docs.map((doc) => <div className="docrow" key={doc.title}><span className={`badge ${doc.type === "회의록" ? "amber" : "gray"}`}>{doc.type}</span><span>{doc.title}</span><small>{doc.date}</small></div>)}</div></div><div><div className="box"><h3>현재 진행 중인 활동</h3>{club.running.map((item) => <div className="li" key={item}>{item}</div>)}</div><div className="box"><h3>회의록에서 논의 중</h3>{club.talking.map((item) => <div className="li" key={item}>{item}</div>)}</div><div className="box"><h3>연락처</h3><div className="rrow"><span>회장</span>{club.head.name}</div><div className="rrow"><span>이메일</span>{club.head.email}</div><div className="rrow"><span>전화</span>{club.head.phone}</div><button className="btn block" onClick={() => onMail(club.id)}>협업 메일 작성</button></div><div className="box"><h3>활동 분야</h3><div className="tags">{club.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><button className="btn ghost sm wide" onClick={() => onAsk(club.id)}>채팅에서 이 동아리로 물어보기</button></div></div></div>
+      {club.aiSummary ? (
+        <div className="cd-extra">
+          {club.fields?.length ? <div className="box"><h3>주요 활동 분야</h3><div className="tags">{club.fields.map((field) => <span key={field}>{field}</span>)}</div></div> : null}
+          {club.activityFlow?.length ? <div className="box"><h3>최근 활동 흐름</h3><ul className="flow-list">{club.activityFlow.map((flow) => <li key={flow.month}><b>{flow.month}</b>{flow.text}</li>)}</ul></div> : null}
+          <div className="box"><h3>AI 활동 요약</h3><Tag kind="ai" /><p>{club.aiSummary}</p></div>
+          <div className="box">
+            <h3>창업지원단 연계 가능성</h3>
+            <div className={`connection-badge conn-${club.connection}`}>{club.connection}</div>
+            {club.recommendedTypes?.length ? (<><h3>추천 사업 유형</h3><ul className="reason-list">{club.recommendedTypes.map((type) => <li key={type}>{type}</li>)}</ul></>) : null}
+          </div>
+        </div>
+      ) : null}
+      </div></div>
     </>
   );
 }
@@ -849,7 +1246,7 @@ function MyPageView({ user, tab, setTab, plans, mails, assets, recent, clubsById
   ];
   return (
     <>
-      <Topbar onMenu={onMenu} title="마이페이지" subtitle={`${user.department} · ${user.name} ${user.rank}`} actions={<button className="btn ghost sm" onClick={onChat}>채팅으로 돌아가기</button>} />
+      <Topbar onMenu={onMenu} title="마이페이지" subtitle={`${user.department} · ${user.name} ${user.rank}${user.duty ? ` · ${user.duty}` : ""}`} actions={<button className="btn ghost sm" onClick={onChat}>채팅으로 돌아가기</button>} />
       <div className="mp"><div className="mp-in"><h1>{tabs.find((item) => item.key === tab)?.label}</h1><p className="sub">채팅에서 만들거나 조회한 내용을 여기서 다시 확인합니다.</p><div className="mtabs">{tabs.map((item) => <button key={item.key} aria-selected={tab === item.key} onClick={() => setTab(item.key)}>{item.label}<span>{item.count}</span></button>)}</div>
         {tab === "plans" ? <PlansTab plans={plans} clubsById={clubsById} onDownload={onDownload} onChat={onChat} /> : null}
         {tab === "mails" ? <MailsTab mails={mails} clubsById={clubsById} onCopy={onCopy} /> : null}
@@ -872,7 +1269,26 @@ function MailsTab({ mails, clubsById, onCopy }: { mails: MailDraft[]; clubsById:
 }
 
 function AssetsTab({ assets, onAddAsset }: { assets: Asset[]; onAddAsset: () => void }) {
-  return <><div className="upzone"><p>기획안·운영안·결과보고서·만족도조사를 등록하세요</p><small>등록한 자료는 기획안 생성 시 과거 사례 근거로 사용됩니다. HWPX · DOCX · PDF</small><button className="btn" onClick={onAddAsset}>자료 등록</button></div>{assets.map((asset) => <div className="item" key={asset.id}><div className="ih"><b>{asset.event}</b><span className="badge gray">{asset.type}</span><span>{asset.year}</span></div><p>{asset.gist}</p><div className="facts"><div><span>파일</span>{asset.file}</div></div></div>)}</>;
+  return (
+    <>
+      <div className="archive-stats">
+        <div><b>{ARCHIVE_STATS.totalDocs.toLocaleString()}건</b><span>교내 문서</span></div>
+        <div><b>{ARCHIVE_STATS.totalClubs}개</b><span>중앙동아리</span></div>
+        <div><b>{ARCHIVE_STATS.newThisMonth}건</b><span>이번 달 신규 문서</span></div>
+        <div><b>{ARCHIVE_STATS.updatedAt}</b><span>최근 업데이트</span></div>
+      </div>
+      <div className="upzone"><p>기획안·운영안·결과보고서·만족도조사를 등록하세요</p><small>등록한 자료는 기획안 생성 시 과거 사례 근거로 사용됩니다. HWPX · DOCX · PDF</small><button className="btn" onClick={onAddAsset}>자료 등록</button></div>
+      {assets.map((asset) => <div className="item" key={asset.id}><div className="ih"><b>{asset.event}</b><span className="badge gray">{asset.type}</span><span>{asset.year}</span></div><p>{asset.gist}</p><div className="facts"><div><span>파일</span>{asset.file}</div></div></div>)}
+      <div className="chart-title">최근 자료</div>
+      {ARCHIVE_ROWS.map((row) => (
+        <div className="docrow" key={row.name}>
+          <span className={`badge ${row.status === "최신" ? "green" : "gray"}`}>{row.status}</span>
+          <span>{row.name}</span>
+          <small>{row.type} · {row.year}</small>
+        </div>
+      ))}
+    </>
+  );
 }
 
 function BriefsTab() {

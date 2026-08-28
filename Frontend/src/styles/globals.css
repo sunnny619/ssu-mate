@@ -427,7 +427,7 @@ textarea {
 .dchip { border: 1px solid var(--line); background: var(--white); border-radius: 99px; padding: 5px 12px; color: var(--text2); }
 .dchip[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
 .clubgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 12px; }
-.ccard { border: 1px solid var(--line); border-radius: 11px; padding: 15px 16px; background: var(--white); display: flex; flex-direction: column; }
+.ccard { border: 1px solid var(--line); border-radius: 11px; padding: 15px 16px; background: var(--white); display: flex; flex-direction: column; cursor: pointer; }
 .ccard:hover { border-color: var(--blue-100); box-shadow: 0 3px 12px rgba(55,54,54,.05); }
 .ccard .ch { display: flex; align-items: flex-start; gap: 8px; }
 .ccard .ch b { display: block; font-size: 14px; }

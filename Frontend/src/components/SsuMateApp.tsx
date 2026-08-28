@@ -717,7 +717,33 @@ function ClubsView({ query, division, sort, clubPageId, onQuery, onDivision, onS
 }
 
 function ClubCard({ club, onOpen, onMail }: { club: Club; onOpen: (id: string) => void; onMail: (id: string) => void }) {
-  return <div className="ccard"><div className="ch"><div className="avatar pale">{club.name[0]}</div><div><b>{club.name}</b><span>{club.division} · 정회원 {club.members}명</span></div>{recentCount(club) >= 8 ? <span className="badge green">활발</span> : null}</div><p>{club.intro}</p><MiniChart club={club} /><div className="tags">{club.tags.slice(0, 4).map((tag) => <span key={tag}>{tag}</span>)}</div><div className="foot"><span>근거 {club.docs.length}건</span><span>최근 {club.docs[0].date}</span><span>마지막 활동 {lastActive(club)}</span></div><div className="cta"><button className="btn ghost sm" onClick={() => onOpen(club.id)}>프로필 열기</button><button className="btn ghost sm" onClick={() => onMail(club.id)}>협업 메일</button></div></div>;
+  return (
+    <article
+      className="ccard"
+      role="button"
+      tabIndex={0}
+      aria-label={`${club.name} 자세히 보기`}
+      onClick={() => onOpen(club.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(club.id);
+        }
+      }}
+    >
+      <div className="ch"><div className="avatar pale">{club.name[0]}</div><div><b>{club.name}</b><span>{club.division} · 정회원 {club.members}명</span></div>{recentCount(club) >= 8 ? <span className="badge green">활발</span> : null}</div>
+      <p>{club.intro}</p>
+      <MiniChart club={club} />
+      <div className="tags">{club.tags.slice(0, 4).map((tag) => <span key={tag}>{tag}</span>)}</div>
+      <div className="foot"><span>근거 {club.docs.length}건</span><span>최근 {club.docs[0].date}</span><span>마지막 활동 {lastActive(club)}</span></div>
+      <div className="cta">
+        <button className="btn ghost sm" onClick={(event) => {
+          event.stopPropagation();
+          onMail(club.id);
+        }}>협업 메일</button>
+      </div>
+    </article>
+  );
 }
 
 function ClubDetail({ club, onBack, onMail, onAsk, onMenu }: { club: Club; onBack: () => void; onMail: (id: string) => void; onAsk: (id: string) => void; onMenu: () => void }) {

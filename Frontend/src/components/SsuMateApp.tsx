@@ -202,9 +202,9 @@ export function SsuMateApp() {
 
   function login(form: FormData) {
     const profile = {
-      name: joinMode ? String(form.get("name") || "유영석") : "유영석",
-      email: String(form.get("email") || "youngseok.yu@ssu.ac.kr"),
-      rank: joinMode ? String(form.get("rank") || "담당자") : "담당자",
+      name: joinMode ? String(form.get("name") || "김직원") : "김직원",
+      email: String(form.get("email") || "startup@ssu.ac.kr"),
+      rank: joinMode ? String(form.get("rank") || "팀원") : "팀원",
       department: joinMode ? String(form.get("department") || "창업지원단") : "창업지원단",
       duty: "대학혁신지원사업 학부생 대상 창업지원 프로그램 기획·운영",
     };
@@ -388,8 +388,8 @@ export function SsuMateApp() {
         tone: text,
         subject: `[숭실대 창업지원단] ${club.name} 동아리 ${flow.purpose} 관련 안내`,
         body: polite
-          ? `안녕하세요, ${club.name} 회장 ${club.head.name} 님.\n숭실대학교 창업지원단 ${user?.rank ?? "팀원"} ${user?.name ?? "김성실"}입니다.\n\n${club.name} 동아리의 최근 활동 자료를 살펴보다가 연락드리게 되었습니다. ${club.talking[0]} 관련 내용이 저희가 준비 중인 프로그램과 맞닿아 있어, ${flow.purpose} 드리고자 합니다.\n\n${club.running[0]}에 대해서도 지원할 수 있는 부분이 있을 것으로 보입니다. 편하신 시간에 짧게 논의할 수 있다면 좋겠습니다.\n\n회신 부탁드립니다. 감사합니다.\n\n${user?.department ?? "창업지원단"} ${user?.rank ?? "팀원"} ${user?.name ?? "김성실"}\n${user?.email ?? "startup@ssu.ac.kr"}`
-          : `안녕하세요, ${club.name} ${club.head.name} 회장님!\n창업지원단 ${user?.name ?? "김성실"}입니다.\n\n${club.name} 활동 기록을 보다가 ${club.talking[0]} 이야기가 눈에 들어와서 연락드려요. 저희 쪽에서 ${flow.purpose} 드리려고 하는데, 관심 있으실까요?\n\n${club.running[0]} 쪽도 같이 이야기 나눠보면 좋을 것 같습니다. 편하신 때 알려주세요!\n\n${user?.name ?? "김성실"} 드림\n${user?.email ?? "startup@ssu.ac.kr"}`,
+          ? `안녕하세요, ${club.name} 회장 ${club.head.name} 님.\n숭실대학교 창업지원단 ${user?.rank ?? "팀원"} ${user?.name ?? "김직원"}입니다.\n\n${club.name} 동아리의 최근 활동 자료를 살펴보다가 연락드리게 되었습니다. ${club.talking[0]} 관련 내용이 저희가 준비 중인 프로그램과 맞닿아 있어, ${flow.purpose} 드리고자 합니다.\n\n${club.running[0]}에 대해서도 지원할 수 있는 부분이 있을 것으로 보입니다. 편하신 시간에 짧게 논의할 수 있다면 좋겠습니다.\n\n회신 부탁드립니다. 감사합니다.\n\n${user?.department ?? "창업지원단"} ${user?.rank ?? "팀원"} ${user?.name ?? "김직원"}\n${user?.email ?? "startup@ssu.ac.kr"}`
+          : `안녕하세요, ${club.name} ${club.head.name} 회장님!\n창업지원단 ${user?.name ?? "김직원"}입니다.\n\n${club.name} 활동 기록을 보다가 ${club.talking[0]} 이야기가 눈에 들어와서 연락드려요. 저희 쪽에서 ${flow.purpose} 드리려고 하는데, 관심 있으실까요?\n\n${club.running[0]} 쪽도 같이 이야기 나눠보면 좋을 것 같습니다. 편하신 때 알려주세요!\n\n${user?.name ?? "김직원"} 드림\n${user?.email ?? "startup@ssu.ac.kr"}`,
         createdAt: TODAY,
       };
       setMails((current) => [draft, ...current]);
@@ -679,7 +679,7 @@ function AuthScreen({ joinMode, setJoinMode, onSubmit }: { joinMode: boolean; se
         </div>
         {joinMode ? (
           <>
-            <label className="field">이름<input name="name" placeholder="김성실" /></label>
+            <label className="field">이름<input name="name" placeholder="김직원" /></label>
             <div className="row2">
               <label className="field">직급<select name="rank"><option>팀원</option><option>과장</option><option>팀장</option><option>센터장</option><option>교수</option></select></label>
               <label className="field">부서<select name="department"><option>창업지원단</option><option>교수학습혁신센터</option><option>진로취업센터</option></select></label>

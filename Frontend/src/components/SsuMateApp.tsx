@@ -624,20 +624,34 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
 
 function ComposerFrame({ onSend, placeholder, footer, compact = false }: { onSend: (text: string) => void; placeholder: string; footer: string; compact?: boolean }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const resizeTextarea = (textarea: HTMLTextAreaElement) => {
+    const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
+    const maxHeight = Number.isFinite(lineHeight) ? lineHeight * 10 : 240;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  };
+  const clearTextarea = () => {
+    if (!ref.current) return;
+    ref.current.value = "";
+    ref.current.style.height = compact ? "24px" : "52px";
+    ref.current.style.overflowY = "hidden";
+  };
+
   return (
     <div className={compact ? "box composer-box" : "glow"}><div className={compact ? "" : "homebox"}>
-      <textarea ref={ref} rows={compact ? 1 : 2} placeholder={placeholder} onKeyDown={(event) => {
+      <textarea ref={ref} rows={compact ? 1 : 2} placeholder={placeholder} onInput={(event) => resizeTextarea(event.currentTarget)} onKeyDown={(event) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
           onSend(event.currentTarget.value);
-          event.currentTarget.value = "";
+          clearTextarea();
         }
       }} />
       <div className="composer-actions">
         <button type="button" className="modechip">{footer}</button>
         <button type="button" className="sendbtn" aria-label="보내기" onClick={() => {
           onSend(ref.current?.value ?? "");
-          if (ref.current) ref.current.value = "";
+          clearTextarea();
         }}><Send size={16} /></button>
       </div>
     </div></div>

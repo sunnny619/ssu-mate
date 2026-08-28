@@ -624,6 +624,8 @@ function Composer({ onSend }: { onSend: (text: string) => void }) {
 
 function ComposerFrame({ onSend, placeholder, footer, compact = false }: { onSend: (text: string) => void; placeholder: string; footer: string; compact?: boolean }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const isComposingRef = useRef(false);
+  const lastSubmitRef = useRef({ text: "", at: 0 });
   const resizeTextarea = (textarea: HTMLTextAreaElement) => {
     const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
     const maxHeight = Number.isFinite(lineHeight) ? lineHeight * 10 : 240;
@@ -637,21 +639,34 @@ function ComposerFrame({ onSend, placeholder, footer, compact = false }: { onSen
     ref.current.style.height = compact ? "24px" : "52px";
     ref.current.style.overflowY = "hidden";
   };
+  const submit = () => {
+    const text = ref.current?.value.trim() ?? "";
+    if (!text) return;
+
+    const nowTime = Date.now();
+    if (lastSubmitRef.current.text === text && nowTime - lastSubmitRef.current.at < 500) return;
+    lastSubmitRef.current = { text, at: nowTime };
+
+    onSend(text);
+    clearTextarea();
+  };
 
   return (
     <div className={compact ? "box composer-box" : "glow"}><div className={compact ? "" : "homebox"}>
-      <textarea ref={ref} rows={compact ? 1 : 2} placeholder={placeholder} onInput={(event) => resizeTextarea(event.currentTarget)} onKeyDown={(event) => {
-        if (event.key === "Enter" && !event.shiftKey) {
+      <textarea ref={ref} rows={compact ? 1 : 2} placeholder={placeholder} onCompositionStart={() => {
+        isComposingRef.current = true;
+      }} onCompositionEnd={() => {
+        isComposingRef.current = false;
+      }} onInput={(event) => resizeTextarea(event.currentTarget)} onKeyDown={(event) => {
+        if (event.key === "Enter" && !event.shiftKey && !event.repeat && !event.nativeEvent.isComposing && !isComposingRef.current) {
           event.preventDefault();
-          onSend(event.currentTarget.value);
-          clearTextarea();
+          submit();
         }
       }} />
       <div className="composer-actions">
         <button type="button" className="modechip">{footer}</button>
         <button type="button" className="sendbtn" aria-label="보내기" onClick={() => {
-          onSend(ref.current?.value ?? "");
-          clearTextarea();
+          submit();
         }}><Send size={16} /></button>
       </div>
     </div></div>

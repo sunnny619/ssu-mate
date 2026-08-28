@@ -563,6 +563,8 @@ function ChatView({ active, clubsById, plansById, mailsById, assets, onSend, onM
   const empty = active.messages.length === 0;
   const chatWrapRef = useRef<HTMLDivElement>(null);
   const lastMessageId = active.messages.at(-1)?.id;
+  const [allowExternalSearch, setAllowExternalSearch] = useState(false);
+  const toggleExternalSearch = () => setAllowExternalSearch((current) => !current);
 
   useEffect(() => {
     const chatWrap = chatWrapRef.current;
@@ -579,14 +581,14 @@ function ChatView({ active, clubsById, plansById, mailsById, assets, onSend, onM
   return (
     <>
       <Topbar onMenu={onMenu} title="슈메이트 에이전트" subtitle={`동아리 데이터 ${CLUBS.length}곳 · 창업지원단 자료 ${assets.length}건 연결됨`} icon={<Bot size={17} />} />
-      {empty ? <HomeComposer onSend={onSend} assetCount={assets.length} /> : (
+      {empty ? <HomeComposer onSend={onSend} assetCount={assets.length} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={toggleExternalSearch} /> : (
         <>
           <div className="chatwrap" ref={chatWrapRef}><div className="msgs">
             {active.messages.map((message) => (
               <MessageBubble key={message.id} message={message} clubsById={clubsById} plansById={plansById} mailsById={mailsById} onSend={onSend} onClub={onClub} onMail={onMail} onCopy={onCopy} onDownload={onDownload} onGoMy={onGoMy} />
             ))}
           </div></div>
-          <Composer onSend={onSend} />
+          <Composer onSend={onSend} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={toggleExternalSearch} />
         </>
       )}
     </>
@@ -604,11 +606,11 @@ function Topbar({ title, subtitle, icon, onMenu, actions }: { title: string; sub
   );
 }
 
-function HomeComposer({ onSend, assetCount }: { onSend: (text: string) => void; assetCount: number }) {
+function HomeComposer({ onSend, assetCount, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string) => void; assetCount: number; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
   return (
     <div className="home"><div className="home-in">
       <h1 className="hero">무엇이든 편하게 시작해 보세요.</h1>
-      <ComposerFrame onSend={onSend} placeholder="동아리를 찾거나, 기획안·협업 메일 작성을 요청해 보세요" footer={`동아리 10곳 · 창업지원단 자료 ${assetCount}건`} />
+      <ComposerFrame onSend={onSend} placeholder="동아리를 찾거나, 기획안·협업 메일 작성을 요청해 보세요" footer={`동아리 10곳 · 창업지원단 자료 ${assetCount}건`} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={onToggleExternalSearch} />
       <div className="quick">{QUICK.map((item) => {
         const Icon = item.icon;
         return <button className="qc" key={item.title} onClick={() => onSend(item.query)}><Icon size={19} /><b>{item.title}</b><span>{item.desc}</span></button>;
@@ -618,15 +620,14 @@ function HomeComposer({ onSend, assetCount }: { onSend: (text: string) => void; 
   );
 }
 
-function Composer({ onSend }: { onSend: (text: string) => void }) {
-  return <div className="composer"><ComposerFrame onSend={onSend} placeholder="다음에 할 일을 알려주세요" footer="근거 기반 응답" compact /><div className="hint">답변의 수치는 활동보고서·회의록에서 추출한 값입니다.</div></div>;
+function Composer({ onSend, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string) => void; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
+  return <div className="composer"><ComposerFrame onSend={onSend} placeholder="다음에 할 일을 알려주세요" footer="근거 기반 응답" compact allowExternalSearch={allowExternalSearch} onToggleExternalSearch={onToggleExternalSearch} /><div className="hint">답변의 수치는 활동보고서·회의록에서 추출한 값입니다.</div></div>;
 }
 
-function ComposerFrame({ onSend, placeholder, footer, compact = false }: { onSend: (text: string) => void; placeholder: string; footer: string; compact?: boolean }) {
+function ComposerFrame({ onSend, placeholder, footer, compact = false, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string) => void; placeholder: string; footer: string; compact?: boolean; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
   const lastSubmitRef = useRef({ text: "", at: 0 });
-  const [allowExternalSearch, setAllowExternalSearch] = useState(false);
   const resizeTextarea = (textarea: HTMLTextAreaElement) => {
     const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
     const maxHeight = Number.isFinite(lineHeight) ? lineHeight * 10 : 240;
@@ -670,7 +671,7 @@ function ComposerFrame({ onSend, placeholder, footer, compact = false }: { onSen
           type="button"
           className={allowExternalSearch ? "search-toggle on" : "search-toggle"}
           aria-pressed={allowExternalSearch}
-          onClick={() => setAllowExternalSearch((current) => !current)}
+          onClick={onToggleExternalSearch}
         >
           <span className="toggle-track"><span className="toggle-thumb" /></span>
           <span>{allowExternalSearch ? "AI 외부 검색 허용" : "AI 내부 문서 검색"}</span>

@@ -57,6 +57,7 @@ export type ChatMessage = {
   clubIds?: string[];
   planId?: string;
   mailId?: string;
+  externalSearch?: boolean;
 };
 
 export type ChatSession = {

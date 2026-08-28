@@ -108,6 +108,7 @@ export function SsuMateApp() {
   const [clubPageId, setClubPageId] = useState<string | null>(null);
   const [sideOpen, setSideOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const externalSearchRef = useRef(false);
 
   const active = sessions.find((session) => session.id === activeId) ?? null;
   const clubsById = useMemo(() => new Map(CLUBS.map((club) => [club.id, club])), []);
@@ -189,6 +190,7 @@ export function SsuMateApp() {
   }
 
   function addMessage(message: Omit<ChatMessage, "id" | "time">) {
+    const externalSearch = message.externalSearch ?? (message.role === "assistant" ? externalSearchRef.current : false);
     setSessions((current) =>
       current.map((session) =>
         session.id !== activeId
@@ -196,7 +198,7 @@ export function SsuMateApp() {
           : {
               ...session,
               title: session.title === "새 대화" && message.role === "user" ? message.text.slice(0, 22) : session.title,
-              messages: [...session.messages, { ...message, id: uid("m"), time: now() }],
+              messages: [...session.messages, { ...message, externalSearch, id: uid("m"), time: now() }],
             },
       ),
     );
@@ -212,10 +214,11 @@ export function SsuMateApp() {
     window.history.replaceState({ ssuMateScreen: { view: "chat", myTab, clubPageId: null } }, "", window.location.href);
   }
 
-  function sendText(text: string) {
+  function sendText(text: string, externalSearch = false) {
     const value = text.trim();
     if (!value || !activeId) return;
-    addMessage({ role: "user", text: value });
+    externalSearchRef.current = externalSearch;
+    addMessage({ role: "user", text: value, externalSearch });
     window.setTimeout(() => route(value), 180);
   }
 
@@ -559,7 +562,7 @@ function Sidebar({ open, sessions, activeId, user, view, planCount, mailCount, o
   );
 }
 
-function ChatView({ active, clubsById, plansById, mailsById, assets, onSend, onMenu, onClub, onMail, onCopy, onDownload, onGoMy }: { active: ChatSession; clubsById: Map<string, Club>; plansById: Map<string, Plan>; mailsById: Map<string, MailDraft>; assets: Asset[]; onSend: (text: string) => void; onMenu: () => void; onClub: (id: string) => void; onMail: (id?: string) => void; onCopy: (mail: MailDraft) => void; onDownload: (plan: Plan) => void; onGoMy: (tab: MyTab) => void }) {
+function ChatView({ active, clubsById, plansById, mailsById, assets, onSend, onMenu, onClub, onMail, onCopy, onDownload, onGoMy }: { active: ChatSession; clubsById: Map<string, Club>; plansById: Map<string, Plan>; mailsById: Map<string, MailDraft>; assets: Asset[]; onSend: (text: string, externalSearch?: boolean) => void; onMenu: () => void; onClub: (id: string) => void; onMail: (id?: string) => void; onCopy: (mail: MailDraft) => void; onDownload: (plan: Plan) => void; onGoMy: (tab: MyTab) => void }) {
   const empty = active.messages.length === 0;
   const chatWrapRef = useRef<HTMLDivElement>(null);
   const lastMessageId = active.messages.at(-1)?.id;
@@ -585,7 +588,7 @@ function ChatView({ active, clubsById, plansById, mailsById, assets, onSend, onM
         <>
           <div className="chatwrap" ref={chatWrapRef}><div className="msgs">
             {active.messages.map((message) => (
-              <MessageBubble key={message.id} message={message} clubsById={clubsById} plansById={plansById} mailsById={mailsById} onSend={onSend} onClub={onClub} onMail={onMail} onCopy={onCopy} onDownload={onDownload} onGoMy={onGoMy} />
+              <MessageBubble key={message.id} message={message} clubsById={clubsById} plansById={plansById} mailsById={mailsById} onSend={onSend} onClub={onClub} onMail={onMail} onCopy={onCopy} onDownload={onDownload} onGoMy={onGoMy} allowExternalSearch={allowExternalSearch} />
             ))}
           </div></div>
           <Composer onSend={onSend} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={toggleExternalSearch} />
@@ -606,25 +609,25 @@ function Topbar({ title, subtitle, icon, onMenu, actions }: { title: string; sub
   );
 }
 
-function HomeComposer({ onSend, assetCount, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string) => void; assetCount: number; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
+function HomeComposer({ onSend, assetCount, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string, externalSearch?: boolean) => void; assetCount: number; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
   return (
     <div className="home"><div className="home-in">
       <h1 className="hero">무엇이든 편하게 시작해 보세요.</h1>
       <ComposerFrame onSend={onSend} placeholder="동아리를 찾거나, 기획안·협업 메일 작성을 요청해 보세요" footer={`동아리 10곳 · 창업지원단 자료 ${assetCount}건`} allowExternalSearch={allowExternalSearch} onToggleExternalSearch={onToggleExternalSearch} />
       <div className="quick">{QUICK.map((item) => {
         const Icon = item.icon;
-        return <button className="qc" key={item.title} onClick={() => onSend(item.query)}><Icon size={19} /><b>{item.title}</b><span>{item.desc}</span></button>;
+        return <button className="qc" key={item.title} onClick={() => onSend(item.query, allowExternalSearch)}><Icon size={19} /><b>{item.title}</b><span>{item.desc}</span></button>;
       })}</div>
       <div className="homefoot"><b>모든 답변에 근거가 붙습니다</b><span>활동보고서와 회의록의 시점·건수를 함께 보여줍니다</span></div>
     </div></div>
   );
 }
 
-function Composer({ onSend, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string) => void; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
+function Composer({ onSend, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string, externalSearch?: boolean) => void; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
   return <div className="composer"><ComposerFrame onSend={onSend} placeholder="다음에 할 일을 알려주세요" footer="근거 기반 응답" compact allowExternalSearch={allowExternalSearch} onToggleExternalSearch={onToggleExternalSearch} /><div className="hint">답변의 수치는 활동보고서·회의록에서 추출한 값입니다.</div></div>;
 }
 
-function ComposerFrame({ onSend, placeholder, footer, compact = false, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string) => void; placeholder: string; footer: string; compact?: boolean; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
+function ComposerFrame({ onSend, placeholder, footer, compact = false, allowExternalSearch, onToggleExternalSearch }: { onSend: (text: string, externalSearch?: boolean) => void; placeholder: string; footer: string; compact?: boolean; allowExternalSearch: boolean; onToggleExternalSearch: () => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
   const lastSubmitRef = useRef({ text: "", at: 0 });
@@ -649,7 +652,7 @@ function ComposerFrame({ onSend, placeholder, footer, compact = false, allowExte
     if (lastSubmitRef.current.text === text && nowTime - lastSubmitRef.current.at < 500) return;
     lastSubmitRef.current = { text, at: nowTime };
 
-    onSend(text);
+    onSend(text, allowExternalSearch);
     clearTextarea();
   };
 
@@ -684,12 +687,12 @@ function ComposerFrame({ onSend, placeholder, footer, compact = false, allowExte
   );
 }
 
-function MessageBubble(props: { message: ChatMessage; clubsById: Map<string, Club>; plansById: Map<string, Plan>; mailsById: Map<string, MailDraft>; onSend: (text: string) => void; onClub: (id: string) => void; onMail: (id?: string) => void; onCopy: (mail: MailDraft) => void; onDownload: (plan: Plan) => void; onGoMy: (tab: MyTab) => void }) {
-  const { message } = props;
+function MessageBubble(props: { message: ChatMessage; clubsById: Map<string, Club>; plansById: Map<string, Plan>; mailsById: Map<string, MailDraft>; onSend: (text: string, externalSearch?: boolean) => void; onClub: (id: string) => void; onMail: (id?: string) => void; onCopy: (mail: MailDraft) => void; onDownload: (plan: Plan) => void; onGoMy: (tab: MyTab) => void; allowExternalSearch: boolean }) {
+  const { message, allowExternalSearch } = props;
   const isUser = message.role === "user";
   return (
     <>
-      <div className={isUser ? "msg me" : "msg ai"}>
+      <div className={`msg ${isUser ? "me" : "ai"}${message.externalSearch ? " external" : ""}`}>
         {!isUser ? <div className="avatar pale">S</div> : null}
         <div className="bub">
           <p>{message.text}</p>
@@ -697,7 +700,7 @@ function MessageBubble(props: { message: ChatMessage; clubsById: Map<string, Clu
           <span className="time">{message.time}</span>
         </div>
       </div>
-      {!isUser && message.chips?.length ? <div className="chips">{message.chips.map((chip) => <button className="chip" key={chip} onClick={() => props.onSend(chip)}>{chip}</button>)}</div> : null}
+      {!isUser && message.chips?.length ? <div className={`chips${message.externalSearch ? " external" : ""}`}>{message.chips.map((chip) => <button className="chip" key={chip} onClick={() => props.onSend(chip, allowExternalSearch)}>{chip}</button>)}</div> : null}
     </>
   );
 }

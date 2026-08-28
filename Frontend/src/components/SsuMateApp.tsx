@@ -36,8 +36,11 @@ import {
   RICH_MATCH_INTRO,
   RICH_MATCH_ITEMS,
   SCENARIO_MAIL,
+  SCENARIO_MAIL_RECORD,
   SCENARIO_PLAN,
   SCENARIO_PLAN_CONFIRM,
+  SCENARIO_PLAN_RECORD,
+  SCENARIO_TRANSCRIPT,
   SIDEBAR_HISTORY,
   SIMILAR_PROGRAMS,
   SIMILAR_PROGRAMS_CHIPS,
@@ -207,16 +210,17 @@ export function SsuMateApp() {
     };
     const session = createSession();
     const dummySessions: ChatSession[] = SIDEBAR_HISTORY.flatMap((group) =>
-      group.titles.map((title) => ({
-        id: uid("s"),
-        title,
-        date: group.label,
-        messages: [{ id: uid("m"), role: "assistant" as const, text: SIDEBAR_PREVIEWS[title] ?? title, time: "오후 3:00" }],
-      })),
+      group.titles.map((title) =>
+        title === "AI 프로젝트 동아리 탐색"
+          ? { id: "s-scenario", title, date: group.label, messages: SCENARIO_TRANSCRIPT }
+          : { id: uid("s"), title, date: group.label, messages: [{ id: uid("m"), role: "assistant" as const, text: SIDEBAR_PREVIEWS[title] ?? title, time: "오후 3:00" }] },
+      ),
     );
     setUser(profile);
     setSessions([session, ...dummySessions]);
     setActiveId(session.id);
+    setPlans([SCENARIO_PLAN_RECORD]);
+    setMails([SCENARIO_MAIL_RECORD]);
   }
 
   function logout() {

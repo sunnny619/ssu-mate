@@ -1,3 +1,22 @@
+# 환경변수 — API 키가 들어감
+.env
+.env.local
+
+# 샘플·업로드 PDF (개인정보 포함)
+backend/samples/
+storage/
+
+# 파이썬
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Next.js
+node_modules/
+.next/
+
+# 에디터
 .DS_Store
-backend/samples/*
-!backend/samples/.gitkeep
+.idea/
+.vscode/

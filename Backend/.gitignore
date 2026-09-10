@@ -3,7 +3,7 @@
 .env.local
 
 # 샘플·업로드 PDF (개인정보 포함)
-backend/samples/
+samples/
 storage/
 
 # 파이썬
